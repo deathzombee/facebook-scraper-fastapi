@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.env
+*.log
+
+# Virtualenv
+venv/
+env/
+ENV/
+
+# VSCode
+.vscode/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Selenium / Chrome
+chromedriver
+chromedriver.exe
