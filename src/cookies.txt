@@ -1,0 +1,6 @@
+# Facebook Cookie Configuration
+# Replace the values below with your actual cookie values
+# Format: key=value (one per line)
+
+c_user=your_c_user_cookie_value_here
+xs=your_xs_cookie_value_here
