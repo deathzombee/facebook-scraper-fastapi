@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -105,12 +105,36 @@ def extract_friend_names(driver: WebDriver) -> List[str]:
     return friend_names
 
 
-def get_friend_data(driver: WebDriver, wait: WebDriverWait, name: str) -> Dict[str, Any]:
+def escape_xpath_string(value: str) -> str:
+    """
+    Escape a string for use in XPath expressions to prevent injection attacks.
+    
+    Args:
+        value: The string to escape
+    
+    Returns:
+        Escaped string safe for XPath
+    """
+    # If the string contains no single quotes, wrap it in single quotes
+    if "'" not in value:
+        return f"'{value}'"
+    # If it contains no double quotes, wrap it in double quotes
+    elif '"' not in value:
+        return f'"{value}"'
+    # Otherwise, use concat to handle both quote types
+    else:
+        parts = value.split("'")
+        escaped_parts = "', \"'\", '".join(parts)
+        return f"concat('{escaped_parts}')"
+
+
+def get_friend_data(driver: WebDriver, wait: WebDriverWait, name: str) -> Optional[Dict[str, Any]]:
     """Get detailed data for a specific friend."""
     try:
-        # Click on friend's profile
+        # Click on friend's profile - use escaped XPath string
+        escaped_name = escape_xpath_string(name)
         friend_link = wait.until(
-            EC.element_to_be_clickable((By.XPATH, f'//a[.//span[text()="{name}"]]'))
+            EC.element_to_be_clickable((By.XPATH, f'//a[.//span[text()={escaped_name}]]'))
         )
         driver.execute_script("arguments[0].scrollIntoView(true);", friend_link)
         time.sleep(CLICK_DELAY)
@@ -155,7 +179,10 @@ def get_friend_data(driver: WebDriver, wait: WebDriverWait, name: str) -> Dict[s
 def navigate_to_all_friends_page(driver: WebDriver, wait: WebDriverWait) -> None:
     """Navigate to the 'All friends' page."""
     driver.get(FACEBOOK_FRIENDS_URL)
-    wait.until(EC.presence_of_element_located((By.XPATH, XPATH_ALL_FRIENDS_BUTTON))).click()
+    all_friends_button = wait.until(
+        EC.presence_of_element_located((By.XPATH, XPATH_ALL_FRIENDS_BUTTON))
+    )
+    all_friends_button.click()
     time.sleep(FRIENDS_PAGE_DELAY)
 
 
