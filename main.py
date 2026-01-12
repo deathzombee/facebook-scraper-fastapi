@@ -1,7 +1,5 @@
-from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from typing import List, Dict, Any, Optional, Tuple
+from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -10,17 +8,8 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.remote.webdriver import WebDriver
 import time
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Configuration constants
+COOKIES_FILE_PATH = Path(__file__).parent / "src" / "cookies.txt"
 FACEBOOK_BASE_URL = "https://www.facebook.com/"
 FACEBOOK_FRIENDS_URL = "https://www.facebook.com/friends"
 WAIT_TIMEOUT = 20
@@ -40,9 +29,48 @@ XPATH_MAIN_CONTENT = '//div[@role="main"]'
 XPATH_PROFILE_LINKS = '//a[contains(@href,"facebook.com") and @role="link"]//span'
 
 
-class MinimalCookieModel(BaseModel):
-    c_user: str  # Facebook c_user cookie
-    xs: str      # Facebook xs cookie
+def load_cookies_from_file() -> Tuple[str, str]:
+    """
+    Load Facebook cookies from src/cookies.txt file.
+    
+    Returns:
+        Tuple of (c_user, xs) cookie values
+        
+    Raises:
+        FileNotFoundError: If cookies file is not found
+        ValueError: If cookies file is improperly formatted
+    """
+    if not COOKIES_FILE_PATH.exists():
+        raise FileNotFoundError(
+            f"Cookies file not found at {COOKIES_FILE_PATH}. Please create it with c_user and xs values."
+        )
+    
+    cookies = {}
+    try:
+        with open(COOKIES_FILE_PATH, 'r') as f:
+            for line in f:
+                line = line.strip()
+                # Skip empty lines and comments
+                if not line or line.startswith('#'):
+                    continue
+                # Parse key=value format
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    cookies[key.strip()] = value.strip()
+    except Exception as e:
+        raise ValueError(f"Error reading cookies file: {str(e)}")
+    
+    # Validate required cookies are present
+    if 'c_user' not in cookies or 'xs' not in cookies:
+        raise ValueError("Cookies file must contain both 'c_user' and 'xs' values")
+    
+    # Validate cookies have actual values (not placeholder text)
+    if cookies['c_user'].startswith('your_') or cookies['xs'].startswith('your_'):
+        raise ValueError(
+            "Please replace placeholder values in cookies.txt with your actual Facebook cookie values"
+        )
+    
+    return cookies['c_user'], cookies['xs']
 
 
 def create_firefox_driver() -> WebDriver:
@@ -83,7 +111,7 @@ def add_facebook_cookies(driver: WebDriver, c_user: str, xs: str) -> None:
 def verify_login(driver: WebDriver) -> None:
     """Verify that the user is logged in to Facebook."""
     if "login" in driver.current_url:
-        raise HTTPException(status_code=401, detail="Login failed via cookies.")
+        raise RuntimeError("Login failed via cookies. Please check your cookie values in src/cookies.txt")
 
 
 def scroll_to_bottom(driver: WebDriver) -> None:
@@ -256,12 +284,47 @@ def scrape_facebook(c_user: str, xs: str) -> List[Dict[str, Any]]:
         if driver is not None:
             driver.quit()
 
-@app.post("/scrape_facebook/")
-async def start_scraping(payload: MinimalCookieModel):
+
+def main():
+    """Main function to run the Facebook scraper."""
+    print("Facebook Friends Scraper")
+    print("=" * 50)
+    
     try:
-        result = scrape_facebook(payload.c_user, payload.xs)
-        return {"status": "success", "data": result}
-    except HTTPException as e:
-        raise e
+        # Load cookies from file
+        print(f"Loading cookies from {COOKIES_FILE_PATH}...")
+        c_user, xs = load_cookies_from_file()
+        print("✓ Cookies loaded successfully")
+        
+        # Run the scraper
+        print("\nStarting scraper...")
+        result = scrape_facebook(c_user, xs)
+        
+        # Display results
+        print("\n" + "=" * 50)
+        print(f"Scraping completed! Found {len(result)} friends.")
+        print("=" * 50)
+        
+        for idx, friend in enumerate(result, 1):
+            print(f"\n{idx}. {friend['name']}")
+            print(f"   Friend count: {friend['friend_count']}")
+            print(f"   Friends of friend: {len(friend['friends_of_friend'])} people")
+        
+        return result
+        
+    except FileNotFoundError as e:
+        print(f"\n✗ Error: {e}")
+        print(f"\nPlease create the file at {COOKIES_FILE_PATH} with your Facebook cookies.")
+        return None
+    except ValueError as e:
+        print(f"\n✗ Error: {e}")
+        return None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"\n✗ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+if __name__ == "__main__":
+    main()
