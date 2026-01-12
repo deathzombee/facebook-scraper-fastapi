@@ -18,8 +18,8 @@ This project is a FastAPI-based web service that scrapes a user's Facebook frien
 ## 📦 Requirements
 
 - Python 3.8+
-- Google Chrome
-- ChromeDriver (compatible with your Chrome version)
+- Mozilla Firefox
+- GeckoDriver (compatible with your Firefox version)
 
 ---
 
