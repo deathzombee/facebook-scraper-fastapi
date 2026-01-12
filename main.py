@@ -124,8 +124,14 @@ def escape_xpath_string(value: str) -> str:
     # Otherwise, use concat to handle both quote types
     else:
         parts = value.split("'")
-        escaped_parts = "', \"'\", '".join(parts)
-        return f"concat('{escaped_parts}')"
+        # Build concat: concat('part1', "'", 'part2', "'", 'part3')
+        concat_parts = []
+        for i, part in enumerate(parts):
+            if part:  # Only add non-empty parts
+                concat_parts.append(f"'{part}'")
+            if i < len(parts) - 1:  # Add single quote between parts
+                concat_parts.append("\"'\"")
+        return f"concat({', '.join(concat_parts)})"
 
 
 def get_friend_data(driver: WebDriver, wait: WebDriverWait, name: str) -> Optional[Dict[str, Any]]:
@@ -180,7 +186,7 @@ def navigate_to_all_friends_page(driver: WebDriver, wait: WebDriverWait) -> None
     """Navigate to the 'All friends' page."""
     driver.get(FACEBOOK_FRIENDS_URL)
     all_friends_button = wait.until(
-        EC.presence_of_element_located((By.XPATH, XPATH_ALL_FRIENDS_BUTTON))
+        EC.element_to_be_clickable((By.XPATH, XPATH_ALL_FRIENDS_BUTTON))
     )
     all_friends_button.click()
     time.sleep(FRIENDS_PAGE_DELAY)
