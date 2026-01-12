@@ -125,10 +125,10 @@ def escape_xpath_string(value: str) -> str:
     else:
         parts = value.split("'")
         # Build concat: concat('part1', "'", 'part2', "'", 'part3')
+        # Keep empty parts to preserve consecutive single quotes
         concat_parts = []
         for i, part in enumerate(parts):
-            if part:  # Only add non-empty parts
-                concat_parts.append(f"'{part}'")
+            concat_parts.append(f"'{part}'")
             if i < len(parts) - 1:  # Add single quote between parts
                 concat_parts.append("\"'\"")
         return f"concat({', '.join(concat_parts)})"
@@ -182,9 +182,20 @@ def get_friend_data(driver: WebDriver, wait: WebDriverWait, name: str) -> Option
     }
 
 
-def navigate_to_all_friends_page(driver: WebDriver, wait: WebDriverWait) -> None:
-    """Navigate to the 'All friends' page."""
+def navigate_to_all_friends_page(driver: WebDriver, wait: WebDriverWait, check_navigation: bool = False) -> None:
+    """
+    Navigate to the 'All friends' page.
+    
+    Args:
+        driver: WebDriver instance
+        wait: WebDriverWait instance
+        check_navigation: If True, wait for navigation element to load first
+    """
     driver.get(FACEBOOK_FRIENDS_URL)
+    if check_navigation:
+        wait.until(EC.presence_of_element_located((By.XPATH, XPATH_NAVIGATION)))
+        time.sleep(FRIENDS_PAGE_DELAY)
+    
     all_friends_button = wait.until(
         EC.element_to_be_clickable((By.XPATH, XPATH_ALL_FRIENDS_BUTTON))
     )
@@ -219,15 +230,8 @@ def scrape_facebook(c_user: str, xs: str) -> List[Dict[str, Any]]:
         time.sleep(FRIENDS_PAGE_DELAY)
         verify_login(driver)
         
-        # Wait for navigation to load and click "All friends"
-        wait.until(EC.presence_of_element_located((By.XPATH, XPATH_NAVIGATION)))
-        time.sleep(FRIENDS_PAGE_DELAY)
-        
-        all_friends_button = wait.until(
-            EC.element_to_be_clickable((By.XPATH, XPATH_ALL_FRIENDS_BUTTON))
-        )
-        all_friends_button.click()
-        time.sleep(FRIENDS_PAGE_DELAY)
+        # Navigate to "All friends" page
+        navigate_to_all_friends_page(driver, wait, check_navigation=True)
         
         # Extract all friend names
         friend_names = extract_friend_names(driver)
