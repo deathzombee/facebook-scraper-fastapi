@@ -197,10 +197,11 @@ def scrape_facebook(c_user: str, xs: str) -> List[Dict[str, Any]]:
     Returns:
         List of dictionaries containing friend data
     """
-    driver = create_firefox_driver()
-    wait = WebDriverWait(driver, WAIT_TIMEOUT)
-
+    driver = None
     try:
+        driver = create_firefox_driver()
+        wait = WebDriverWait(driver, WAIT_TIMEOUT)
+
         # Initial page load and cookie setup
         driver.get(FACEBOOK_BASE_URL)
         time.sleep(INITIAL_LOAD_DELAY)
@@ -216,10 +217,10 @@ def scrape_facebook(c_user: str, xs: str) -> List[Dict[str, Any]]:
         wait.until(EC.presence_of_element_located((By.XPATH, XPATH_NAVIGATION)))
         time.sleep(FRIENDS_PAGE_DELAY)
         
-        all_friends_btn = wait.until(
+        all_friends_button = wait.until(
             EC.element_to_be_clickable((By.XPATH, XPATH_ALL_FRIENDS_BUTTON))
         )
-        all_friends_btn.click()
+        all_friends_button.click()
         time.sleep(FRIENDS_PAGE_DELAY)
         
         # Extract all friend names
@@ -242,7 +243,8 @@ def scrape_facebook(c_user: str, xs: str) -> List[Dict[str, Any]]:
         return all_data
 
     finally:
-        driver.quit()
+        if driver is not None:
+            driver.quit()
 
 @app.post("/scrape_facebook/")
 async def start_scraping(payload: MinimalCookieModel):
