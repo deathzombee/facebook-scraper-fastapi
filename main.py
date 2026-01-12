@@ -1,12 +1,13 @@
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
+import time
+import traceback
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.remote.webdriver import WebDriver
-import time
 
 # Configuration constants
 COOKIES_FILE_PATH = Path(__file__).parent / "src" / "cookies.txt"
@@ -64,8 +65,14 @@ def load_cookies_from_file() -> Tuple[str, str]:
     if 'c_user' not in cookies or 'xs' not in cookies:
         raise ValueError("Cookies file must contain both 'c_user' and 'xs' values")
     
-    # Validate cookies have actual values (not placeholder text)
-    if cookies['c_user'].startswith('your_') or cookies['xs'].startswith('your_'):
+    # Validate cookies have actual values (not empty or placeholder text)
+    if not cookies['c_user'] or not cookies['xs']:
+        raise ValueError("Cookie values cannot be empty. Please add your actual Facebook cookie values.")
+    
+    # Check for common placeholder patterns
+    placeholder_patterns = ['your_', 'placeholder', 'example', 'cookie_value']
+    if any(pattern in cookies['c_user'].lower() or pattern in cookies['xs'].lower() 
+           for pattern in placeholder_patterns):
         raise ValueError(
             "Please replace placeholder values in cookies.txt with your actual Facebook cookie values"
         )
@@ -321,7 +328,6 @@ def main():
         return None
     except Exception as e:
         print(f"\n✗ Unexpected error: {e}")
-        import traceback
         traceback.print_exc()
         return None
 
